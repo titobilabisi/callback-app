@@ -1,0 +1,11 @@
+node_modules/
+dist/
+venv/
+__pycache__/
+*.pyc
+instance/
+*.db
+.pytest_cache/
+shots/
+screenshot.mjs
+.DS_Store
