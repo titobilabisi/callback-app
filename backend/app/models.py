@@ -98,3 +98,106 @@ class Invite(db.Model):
             "is_expired": self.is_expired,
             "is_used": self.is_used,
         }
+
+
+class RequestStatus(str, enum.Enum):
+    PENDING = "pending"
+    VERIFIED = "verified"
+    DENIED = "denied"
+    # The safe default. A request nobody answered in time ends here. The
+    # system never silently turns non-response into approval.
+    UNABLE_TO_VERIFY = "unable_to_verify"
+
+
+class Decision(str, enum.Enum):
+    APPROVE = "approve"
+    DECLINE = "decline"
+
+
+class VerificationRequest(db.Model):
+    """One "I got a call, help me check" from an elder.
+
+    The route and the number of approvals required are computed on the
+    server from the risk answers (see risk.py) and stored here. They are
+    never taken from the client.
+    """
+
+    __tablename__ = "verification_requests"
+
+    id = db.Column(db.Integer, primary_key=True)
+    elder_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+
+    # The six yes/no risk answers. All six are kept, including the ones
+    # that do not change the route, so they are available to the audit
+    # trail and to the verifier's call summary.
+    answers = db.Column(db.JSON, nullable=False)
+    route = db.Column(db.String(20), nullable=False)
+    required_approvals = db.Column(db.Integer, nullable=False)
+
+    status = db.Column(db.Enum(RequestStatus), default=RequestStatus.PENDING, nullable=False)
+    created_at = db.Column(db.DateTime, default=_utcnow, nullable=False)
+    expires_at = db.Column(db.DateTime, nullable=False)
+    resolved_at = db.Column(db.DateTime, nullable=True)
+
+    elder = db.relationship("User", foreign_keys=[elder_id])
+    responses = db.relationship(
+        "VerificationResponse", backref="request", order_by="VerificationResponse.created_at"
+    )
+
+    @property
+    def is_expired(self) -> bool:
+        return _utcnow() > self.expires_at
+
+    @property
+    def is_open(self) -> bool:
+        """Still waiting on verifiers and still inside its time window."""
+        return self.status == RequestStatus.PENDING and not self.is_expired
+
+    def settle_if_expired(self) -> None:
+        """Move a pending request that ran out of time to Unable to Verify.
+        Called on every read and every response attempt, so an expired
+        request can never be approved late, whether or not anything ever
+        looked at it in between.
+        """
+        if self.status == RequestStatus.PENDING and self.is_expired:
+            self.status = RequestStatus.UNABLE_TO_VERIFY
+            self.resolved_at = self.expires_at
+
+    @property
+    def approvals(self) -> int:
+        return sum(1 for r in self.responses if r.decision == Decision.APPROVE)
+
+    def to_dict(self):
+        seconds_left = 0
+        if self.status == RequestStatus.PENDING:
+            seconds_left = max(0, int((self.expires_at - _utcnow()).total_seconds()))
+        return {
+            "id": self.id,
+            "status": self.status.value,
+            "route": self.route,
+            "required_approvals": self.required_approvals,
+            "approvals": self.approvals,
+            "expires_at": self.expires_at.isoformat(),
+            "seconds_left": seconds_left,
+        }
+
+
+class VerificationResponse(db.Model):
+    """One verifier's approve or decline on one request.
+
+    The unique constraint is what enforces "two distinct verifiers" at the
+    database level: the same verifier cannot answer the same request twice,
+    so one compromised verifier account cannot satisfy a two-person
+    request by itself.
+    """
+
+    __tablename__ = "verification_responses"
+    __table_args__ = (db.UniqueConstraint("request_id", "verifier_id", name="one_response_per_verifier"),)
+
+    id = db.Column(db.Integer, primary_key=True)
+    request_id = db.Column(db.Integer, db.ForeignKey("verification_requests.id"), nullable=False)
+    verifier_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    decision = db.Column(db.Enum(Decision), nullable=False)
+    created_at = db.Column(db.DateTime, default=_utcnow, nullable=False)
+
+    verifier = db.relationship("User", foreign_keys=[verifier_id])

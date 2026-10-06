@@ -22,7 +22,7 @@ export default function Timeout() {
         <h1 className="text-2xl font-semibold text-ink mt-6 mb-2">We couldn't reach your family yet.</h1>
         <p className="text-slate">Don't send anything, try again soon.</p>
       </div>
-      <Button variant="primary" onClick={() => navigate('/waiting')}>Try again</Button>
+      <Button variant="primary" onClick={() => navigate('/home')}>Start again</Button>
     </Screen>
   )
 }

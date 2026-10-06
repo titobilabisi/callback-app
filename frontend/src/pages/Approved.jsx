@@ -4,9 +4,11 @@ import AppHeader from '../components/AppHeader'
 import StatusPill from '../components/StatusPill'
 import IconTile from '../components/IconTile'
 import Button from '../components/Button'
+import { useCheck } from '../CheckContext'
 
 export default function Approved() {
   const navigate = useNavigate()
+  const { lastRequest } = useCheck()
 
   return (
     <Screen>
@@ -20,10 +22,14 @@ export default function Approved() {
           </svg>
         </IconTile>
         <h1 className="text-2xl font-semibold text-ink mt-6 mb-6">Your family checked, this looks okay.</h1>
-        <div className="w-full border border-black/10 rounded-2xl p-4 text-left">
-          <p className="text-xs tracking-wide text-slate uppercase mb-1">Call details</p>
-          <p className="text-ink">Insurance bill, $120.</p>
-        </div>
+        {lastRequest && (
+          <div className="w-full border border-black/10 rounded-2xl p-4 text-left">
+            <p className="text-xs tracking-wide text-slate uppercase mb-1">Checked by</p>
+            <p className="text-ink">
+              {lastRequest.approvals} of your family {lastRequest.approvals === 1 ? 'member' : 'members'} approved this.
+            </p>
+          </div>
+        )}
       </div>
       <Button variant="success" onClick={() => navigate('/home')}>Call them back now</Button>
     </Screen>

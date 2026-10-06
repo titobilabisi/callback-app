@@ -1,18 +1,22 @@
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { homePathFor, useAuth } from '../AuthContext'
 
 export default function Splash() {
   const navigate = useNavigate()
+  const { user, loading } = useAuth()
+  const next = user ? homePathFor(user) : '/signin'
 
   useEffect(() => {
-    const timer = setTimeout(() => navigate('/home'), 1400)
+    if (loading) return undefined
+    const timer = setTimeout(() => navigate(next), 1400)
     return () => clearTimeout(timer)
-  }, [navigate])
+  }, [navigate, loading, next])
 
   return (
     <div className="min-h-screen flex items-start justify-center bg-[#eceeec] py-10 px-4">
       <div
-        onClick={() => navigate('/home')}
+        onClick={() => !loading && navigate(next)}
         className="w-full max-w-sm rounded-[28px] shadow-sm border border-black/5 min-h-[700px] flex flex-col items-center justify-center px-10 cursor-pointer"
         style={{ backgroundColor: '#f3ede1' }}
       >

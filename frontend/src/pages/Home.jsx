@@ -4,14 +4,21 @@ import AppHeader from '../components/AppHeader'
 import IconTile from '../components/IconTile'
 import Button from '../components/Button'
 import { useCheck } from '../CheckContext'
+import { useAuth } from '../AuthContext'
 
 export default function Home() {
   const navigate = useNavigate()
   const { reset } = useCheck()
+  const { logout } = useAuth()
 
   function startCheck() {
     reset()
     navigate('/check/1')
+  }
+
+  async function signOut() {
+    await logout()
+    navigate('/signin', { replace: true })
   }
 
   return (
@@ -30,6 +37,10 @@ export default function Home() {
         <Button variant="primary" onClick={startCheck}>I got a call, help me check</Button>
         <div className="flex items-center justify-center gap-2 text-sm text-teal bg-teal-light rounded-2xl py-3">
           <span>It's always okay to pause a call.</span>
+        </div>
+        <div className="flex items-center justify-center gap-6 text-sm pt-1">
+          <button type="button" onClick={() => navigate('/family')} className="text-teal underline">My family</button>
+          <button type="button" onClick={signOut} className="text-slate underline">Sign out</button>
         </div>
       </div>
     </Screen>

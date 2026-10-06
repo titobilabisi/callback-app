@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 
 from flask import Blueprint, jsonify, request
 
+from .auth import require_role
 from .models import Invite, Role, User, db
 from .security import hash_password
 
@@ -42,14 +43,18 @@ def create_elder():
 
 
 @enrollment_bp.post("/elders/<int:elder_id>/invites")
-def create_invite(elder_id):
+@require_role(Role.ELDER)
+def create_invite(elder, elder_id):
     """An elder creates an invite for one specific family member or
     caregiver. The invite is single use and expires, so it cannot be
     reused or sit open indefinitely.
+
+    Only the logged in elder can do this, and only for their own family.
+    Without this check anyone could mint an invite for any elder, join as
+    a "family member", and approve a scam call.
     """
-    elder = db.session.get(User, elder_id)
-    if elder is None or elder.role != Role.ELDER:
-        return jsonify({"error": "elder account not found"}), 404
+    if elder.id != elder_id:
+        return jsonify({"error": "you can only invite people to your own family"}), 403
 
     data = request.get_json(silent=True) or {}
     verifier_name_hint = (data.get("verifier_name_hint") or "").strip() or None
@@ -104,11 +109,13 @@ def accept_invite():
 
 
 @enrollment_bp.get("/elders/<int:elder_id>/verifiers")
-def list_verifiers(elder_id):
-    """The list of family members or caregivers enrolled under one elder."""
-    elder = db.session.get(User, elder_id)
-    if elder is None or elder.role != Role.ELDER:
-        return jsonify({"error": "elder account not found"}), 404
+@require_role(Role.ELDER)
+def list_verifiers(elder, elder_id):
+    """The family members or caregivers enrolled under this elder. An elder
+    can only see their own list.
+    """
+    if elder.id != elder_id:
+        return jsonify({"error": "you can only view your own family"}), 403
 
     verifiers = User.query.filter_by(enrolled_by_id=elder_id, role=Role.VERIFIER).all()
     return jsonify([v.to_dict() for v in verifiers])

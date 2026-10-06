@@ -1,10 +1,70 @@
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Screen from '../components/Screen'
 import AppHeader from '../components/AppHeader'
 import IconTile from '../components/IconTile'
+import { api } from '../api'
+import { useCheck } from '../CheckContext'
 
+const POLL_MS = 2000
+
+const RESULT_PATH = {
+  verified: '/result/approved',
+  denied: '/result/denied',
+  unable_to_verify: '/result/timeout',
+}
+
+// Asks the server every couple of seconds whether the family has answered.
+// The result shown is whatever the server says; nothing here decides it.
 export default function Waiting() {
   const navigate = useNavigate()
+  const { requestId, lastRequest, updateRequest } = useCheck()
+  const [trouble, setTrouble] = useState(false)
+
+  useEffect(() => {
+    if (!requestId) {
+      navigate('/home', { replace: true })
+      return undefined
+    }
+
+    let cancelled = false
+    let timer
+
+    async function poll() {
+      try {
+        const req = await api(`/requests/${requestId}`)
+        if (cancelled) return
+        setTrouble(false)
+        updateRequest(req)
+        const path = RESULT_PATH[req.status]
+        if (path) {
+          navigate(path, { replace: true })
+          return
+        }
+      } catch (err) {
+        if (cancelled) return
+        if (err.status === 401) {
+          navigate('/signin', { replace: true })
+          return
+        }
+        if (err.status === 404) {
+          navigate('/home', { replace: true })
+          return
+        }
+        setTrouble(true)
+      }
+      timer = setTimeout(poll, POLL_MS)
+    }
+
+    poll()
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
+  }, [requestId, navigate, updateRequest])
+
+  const needsTwo = lastRequest?.required_approvals === 2
+  const minutesLeft = lastRequest?.seconds_left ? Math.ceil(lastRequest.seconds_left / 60) : null
 
   return (
     <Screen>
@@ -18,23 +78,27 @@ export default function Waiting() {
           </svg>
         </IconTile>
         <h1 className="text-2xl font-semibold text-ink mt-6 mb-2">Just a minute...</h1>
-        <p className="text-slate">We're checking with your family.</p>
+        <p className="text-slate">
+          {needsTwo
+            ? `We're checking with your family. ${lastRequest.approvals} of ${lastRequest.required_approvals} have approved.`
+            : "We're checking with your family."}
+        </p>
+        {minutesLeft && <p className="text-slate text-sm mt-2">We'll wait about {minutesLeft} more {minutesLeft === 1 ? 'minute' : 'minutes'}.</p>}
       </div>
 
-      <div className="bg-teal-light text-teal rounded-2xl py-3 text-center text-sm mb-3">
+      {lastRequest?.can_be_completed === false && (
+        <p role="alert" className="bg-danger-bg text-danger-ink rounded-2xl p-3 text-sm mb-3">
+          This call needs two family members, but only one has joined. Don't send anything. Ask another family member to join.
+        </p>
+      )}
+      {trouble && (
+        <p role="status" className="bg-danger-bg text-danger-ink rounded-2xl p-3 text-sm mb-3">
+          Having trouble connecting. Still trying...
+        </p>
+      )}
+
+      <div className="bg-teal-light text-teal rounded-2xl py-3 text-center text-sm">
         Stay on this screen
-      </div>
-
-      {/* Demo controls: this prototype does not yet have a live verifier
-          connection (that is Chunk 3 of the build). These links stand in
-          for a family member responding on their own phone. */}
-      <div className="border-t border-black/5 pt-3 text-center">
-        <p className="text-xs text-slate mb-2">Demo only, not part of the real app</p>
-        <div className="flex gap-2 text-xs">
-          <button onClick={() => navigate('/result/approved')} className="flex-1 py-2 rounded-xl bg-success-bg text-success-ink">Simulate approved</button>
-          <button onClick={() => navigate('/result/denied')} className="flex-1 py-2 rounded-xl bg-danger-bg text-danger-ink">Simulate denied</button>
-          <button onClick={() => navigate('/result/timeout')} className="flex-1 py-2 rounded-xl bg-teal-light text-teal">Simulate timeout</button>
-        </div>
       </div>
     </Screen>
   )
