@@ -10,7 +10,7 @@ export default defineConfig({
     // Flask backend. That keeps cookies same-origin, and it means a phone on
     // the same Wi-Fi only needs to reach this one port (5173).
     proxy: {
-      '/api': 'http://localhost:5000',
+      '/api': 'http://127.0.0.1:5001',
     },
   },
 })

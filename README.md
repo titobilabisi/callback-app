@@ -41,7 +41,7 @@ python3 -m venv venv
 ./venv/bin/python run.py
 ```
 
-The API runs on http://localhost:5000.
+The API runs on http://localhost:5001.
 
 Run the test suite with:
 
@@ -59,7 +59,7 @@ npm install
 npm run dev
 ```
 
-The app runs on http://localhost:5173. It forwards `/api` to the backend on port 5000, so start the backend first and keep both running.
+The app runs on http://localhost:5173. It forwards `/api` to the backend on port 5001, so start the backend first and keep both running.
 
 To try it on a phone on the same Wi-Fi, start the frontend with `npm run dev -- --host` and open the Network address it prints.
 
