@@ -60,8 +60,10 @@ export function CheckProvider({ children }) {
   }, [])
 
   // Sends the answers. Throws an ApiError the caller can show.
-  const submit = useCallback(async (finalAnswers) => {
-    const req = await api('/requests', { method: 'POST', body: { answers: finalAnswers } })
+  const submit = useCallback(async (finalAnswers, callerNote = '') => {
+    const body = { answers: finalAnswers }
+    if (callerNote.trim()) body.caller_note = callerNote
+    const req = await api('/requests', { method: 'POST', body })
     setRequestId(req.id)
     setLastRequest(req)
     writeStoredId(req.id)

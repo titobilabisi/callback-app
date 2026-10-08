@@ -9,6 +9,7 @@ import Join from './pages/Join'
 import Family from './pages/Family'
 import Home from './pages/Home'
 import RiskQuestion from './pages/RiskQuestion'
+import CallerNote from './pages/CallerNote'
 import Waiting from './pages/Waiting'
 import Approved from './pages/Approved'
 import Denied from './pages/Denied'
@@ -30,6 +31,7 @@ export default function App() {
           <Route path="/join/:token" element={<Join />} />
           <Route path="/home" element={elder(<Home />)} />
           <Route path="/family" element={elder(<Family />)} />
+          <Route path="/check/note" element={elder(<CallerNote />)} />
           <Route path="/check/:step" element={elder(<RiskQuestion />)} />
           <Route path="/waiting" element={elder(<Waiting />)} />
           <Route path="/result/approved" element={elder(<Approved />)} />

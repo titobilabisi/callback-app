@@ -11,7 +11,7 @@ export default function RiskQuestion() {
   const { step } = useParams()
   const stepNum = Number(step)
   const navigate = useNavigate()
-  const { questions, questionsError, answers, answer, submit } = useCheck()
+  const { questions, questionsError, answers, answer } = useCheck()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
 
@@ -39,15 +39,7 @@ export default function RiskQuestion() {
       navigate(`/check/${stepNum + 1}`)
       return
     }
-    setBusy(true)
-    setError(null)
-    try {
-      await submit({ ...answers, [question.key]: value })
-      navigate('/waiting', { replace: true })
-    } catch (err) {
-      setError(err)
-      setBusy(false)
-    }
+    navigate('/check/note')
   }
 
   return (

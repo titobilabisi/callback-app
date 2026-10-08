@@ -134,6 +134,11 @@ class VerificationRequest(db.Model):
     route = db.Column(db.String(20), nullable=False)
     required_approvals = db.Column(db.Integer, nullable=False)
 
+    # Optional short note from the elder about who the caller said they
+    # were ("says he is from my insurance"). Shown to verifiers as plain
+    # text. It never affects the route or the result.
+    caller_note = db.Column(db.String(140), nullable=True)
+
     status = db.Column(db.Enum(RequestStatus), default=RequestStatus.PENDING, nullable=False)
     created_at = db.Column(db.DateTime, default=_utcnow, nullable=False)
     expires_at = db.Column(db.DateTime, nullable=False)
@@ -177,6 +182,7 @@ class VerificationRequest(db.Model):
             "route": self.route,
             "required_approvals": self.required_approvals,
             "approvals": self.approvals,
+            "caller_note": self.caller_note,
             "expires_at": self.expires_at.isoformat(),
             "seconds_left": seconds_left,
         }

@@ -365,3 +365,39 @@ def test_inbox_never_shows_another_elders_requests(app):
 def test_elder_cannot_read_the_verifier_inbox(app):
     family = Family(app, verifiers=1)
     assert family.elder_client.get("/api/verifier/requests").status_code == 403
+
+
+# --- Caller note (optional text the family member sees) ---------------------
+
+def test_caller_note_reaches_the_family_member(app):
+    fam = Family(app, verifiers=1)
+    res = fam.elder_client.post(
+        "/api/requests", json={"answers": answers(), "caller_note": "  Says he is   from my insurance "}
+    )
+    assert res.status_code == 201
+    inbox = fam.verifier_clients[0].get("/api/verifier/requests").get_json()
+    assert inbox[0]["caller_note"] == "Says he is from my insurance"
+
+
+def test_caller_note_is_optional_and_blank_means_none(app):
+    fam = Family(app, verifiers=1)
+    for body in ({"answers": answers()}, {"answers": answers(), "caller_note": "   "}):
+        assert fam.elder_client.post("/api/requests", json=body).status_code == 201
+    inbox = fam.verifier_clients[0].get("/api/verifier/requests").get_json()
+    assert [r["caller_note"] for r in inbox] == [None, None]
+
+
+def test_caller_note_must_be_short_text(app):
+    fam = Family(app, verifiers=1)
+    for bad in ("x" * 141, 123, ["a"], {"a": 1}, True):
+        res = fam.elder_client.post("/api/requests", json={"answers": answers(), "caller_note": bad})
+        assert res.status_code == 400, bad
+
+
+def test_caller_note_never_changes_the_route(app):
+    fam = Family(app, verifiers=2)
+    res = fam.elder_client.post(
+        "/api/requests",
+        json={"answers": answers(), "caller_note": "urgent money wire gift card personal info"},
+    )
+    assert res.get_json()["route"] == "single"

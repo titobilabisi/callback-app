@@ -90,6 +90,13 @@ export default function Verifier() {
             {inbox.length > 1 && <p className="text-slate text-sm mt-1">{inbox.length - 1} more waiting after this one.</p>}
           </div>
 
+          {current.caller_note && (
+            <div className="border border-black/10 rounded-2xl p-4 mb-4">
+              <p className="text-slate text-sm mb-1">The caller said</p>
+              <p className="text-ink">{current.caller_note}</p>
+            </div>
+          )}
+
           <div className="border border-black/10 rounded-2xl p-4 mb-4">
             <p className="text-ink font-medium mb-3">Call summary</p>
             <div className="space-y-3">

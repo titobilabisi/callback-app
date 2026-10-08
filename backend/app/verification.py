@@ -36,6 +36,21 @@ from .risk import RISK_FACTORS, TWO_PERSON, InvalidAnswers, assess
 verification_bp = Blueprint("verification", __name__, url_prefix="/api")
 
 DEFAULT_REQUEST_TTL_SECONDS = 300
+MAX_NOTE_LENGTH = 140
+
+
+def _clean_note(value):
+    """The optional caller note. Returns (note, error). Must be a string,
+    is trimmed, and is limited in length. An empty note means no note.
+    """
+    if value is None:
+        return None, None
+    if not isinstance(value, str):
+        return None, "caller_note must be text"
+    note = " ".join(value.split())
+    if len(note) > MAX_NOTE_LENGTH:
+        return None, f"caller_note must be {MAX_NOTE_LENGTH} characters or fewer"
+    return (note or None), None
 
 
 def _enrolled_verifiers(elder: User):
@@ -61,6 +76,10 @@ def create_request(elder):
     except InvalidAnswers as err:
         return jsonify({"error": str(err)}), 400
 
+    note, note_error = _clean_note(data.get("caller_note"))
+    if note_error:
+        return jsonify({"error": note_error}), 400
+
     verifiers = _enrolled_verifiers(elder)
     if not verifiers:
         return jsonify({"error": "no family members are enrolled yet, so nobody can check this call"}), 409
@@ -71,6 +90,7 @@ def create_request(elder):
         answers=assessment.answers,
         route=assessment.route,
         required_approvals=assessment.required_approvals,
+        caller_note=note,
         expires_at=_utcnow() + timedelta(seconds=ttl),
     )
     db.session.add(req)
