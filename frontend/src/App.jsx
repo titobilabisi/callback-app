@@ -15,6 +15,7 @@ import Approved from './pages/Approved'
 import Denied from './pages/Denied'
 import Timeout from './pages/Timeout'
 import Verifier from './pages/Verifier'
+import TotpSetup from './pages/TotpSetup'
 
 // The role gates here only decide which screen to show. The server checks
 // the role again on every request, so these are not the security boundary.
@@ -37,6 +38,7 @@ export default function App() {
           <Route path="/result/approved" element={elder(<Approved />)} />
           <Route path="/result/denied" element={elder(<Denied />)} />
           <Route path="/result/timeout" element={elder(<Timeout />)} />
+          <Route path="/verify/setup" element={<Protected role="verifier"><TotpSetup /></Protected>} />
           <Route path="/verify" element={<Protected role="verifier"><Verifier /></Protected>} />
         </Routes>
       </CheckProvider>

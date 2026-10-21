@@ -20,7 +20,9 @@ from datetime import timedelta
 from flask import Blueprint, current_app, jsonify, request
 from sqlalchemy.exc import IntegrityError
 
+from . import totp
 from .auth import require_role
+from .limiter import limiter, user_or_ip
 from .models import (
     Decision,
     RequestStatus,
@@ -151,7 +153,12 @@ def verifier_inbox(verifier):
     return jsonify(inbox)
 
 
+def _wrong_code(response):
+    return response.status_code == 401
+
+
 @verification_bp.post("/requests/<int:request_id>/respond")
+@limiter.limit("5 per 15 minutes", key_func=user_or_ip, deduct_when=_wrong_code)
 @require_role(Role.VERIFIER)
 def respond(verifier, request_id):
     data = request.get_json(silent=True) or {}
@@ -177,6 +184,14 @@ def respond(verifier, request_id):
 
     if any(r.verifier_id == verifier.id for r in req.responses):
         return jsonify({"error": "you already responded to this request"}), 409
+
+    # Declining is the safe direction, so it needs nothing extra. Approving
+    # needs a valid, unused code from the family member's authenticator app.
+    if decision == Decision.APPROVE:
+        if not verifier.totp_confirmed:
+            return jsonify({"error": "set up your authenticator app before approving", "code": "totp_setup_required"}), 403
+        if not totp.verify_and_consume(verifier, data.get("code")):
+            return jsonify({"error": "that code is not right or was already used. Wait for a new code and try again."}), 401
 
     db.session.add(VerificationResponse(request_id=req.id, verifier_id=verifier.id, decision=decision))
     try:

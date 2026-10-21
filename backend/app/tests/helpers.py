@@ -1,5 +1,8 @@
 """Small helpers shared by the Chunk 2 and Chunk 3 tests."""
+import pyotp
+
 from app import create_app
+from app.models import User
 from app.risk import FACTOR_KEYS
 
 PASSWORD = "correct horse battery"
@@ -40,6 +43,24 @@ def login(client, email):
     return res.get_json()
 
 
+def next_code(app, email):
+    """A fresh, valid code for this family member. Moves the fake clock on
+    one step first, so the code is never one that was already used.
+    """
+    app.clock.advance(30)
+    with app.app_context():
+        secret = User.query.filter_by(email=email).first().totp_secret
+    return pyotp.TOTP(secret).at(app.clock())
+
+
+def confirm_totp(app, client, email):
+    """Finish a family member's authenticator setup, as the app does."""
+    setup = client.get("/api/verifier/totp").get_json()
+    assert setup["confirmed"] is False
+    res = client.post("/api/verifier/totp/confirm", json={"code": next_code(app, email)})
+    assert res.status_code == 200, res.get_json()
+
+
 def new_client(app):
     """A separate browser: its own cookie jar, same app and database."""
     return app.test_client()
@@ -64,6 +85,7 @@ class Family:
             v = enroll_verifier(app, self.elder, email, name=f"Verifier {i}")
             c = app.test_client()
             login(c, email)
+            confirm_totp(app, c, email)
             self.verifiers.append(v)
             self.verifier_clients.append(c)
 
@@ -72,10 +94,14 @@ class Family:
         assert res.status_code == 201, res.get_json()
         return res.get_json()
 
-    def respond(self, verifier_index, request_id, decision):
-        return self.verifier_clients[verifier_index].post(
-            f"/api/requests/{request_id}/respond", json={"decision": decision}
-        )
+    def respond(self, verifier_index, request_id, decision, code="auto"):
+        """Approving sends a fresh valid code unless one is given."""
+        body = {"decision": decision}
+        if decision == "approve" and code == "auto":
+            code = next_code(self.app, self.verifiers[verifier_index]["email"])
+        if code is not None and code != "auto":
+            body["code"] = code
+        return self.verifier_clients[verifier_index].post(f"/api/requests/{request_id}/respond", json=body)
 
     def status(self, request_id):
         return self.elder_client.get(f"/api/requests/{request_id}").get_json()

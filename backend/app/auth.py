@@ -6,13 +6,14 @@ anything the client sends, so the server-side authorization check the
 threat model asks for happens on every verifier and elder action, not
 just at login.
 
-Not here yet (Phase 4 of the roadmap): TOTP, rate limiting on login, and
-audit event logging.
+Login is rate limited (see limiter.py). Not here yet (Phase 4): audit event
+logging.
 """
 from functools import wraps
 
 from flask import Blueprint, jsonify, request, session
 
+from .limiter import email_key, limiter
 from .models import Role, User, db
 from .security import hash_password, verify_password
 
@@ -48,7 +49,13 @@ def require_role(role: Role):
     return decorator
 
 
+def _failed_login(response):
+    return response.status_code == 401
+
+
 @auth_bp.post("/login")
+@limiter.limit("30 per minute")
+@limiter.limit("5 per 15 minutes", key_func=email_key, deduct_when=_failed_login)
 def login():
     data = request.get_json(silent=True) or {}
     email = (data.get("email") or "").strip().lower()

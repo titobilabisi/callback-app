@@ -1,6 +1,7 @@
 from flask import Flask
 from flask_cors import CORS
 
+from .limiter import limiter, too_many
 from .models import db
 
 
@@ -20,6 +21,8 @@ def create_app(config_overrides=None):
         app.config.update(config_overrides)
 
     db.init_app(app)
+    limiter.init_app(app)
+    app.register_error_handler(429, too_many)
 
     CORS(
         app,
@@ -29,11 +32,13 @@ def create_app(config_overrides=None):
 
     from .auth import auth_bp
     from .enrollment import enrollment_bp
+    from .totp import totp_bp
     from .verification import verification_bp
 
     app.register_blueprint(enrollment_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(verification_bp)
+    app.register_blueprint(totp_bp)
 
     with app.app_context():
         db.create_all()

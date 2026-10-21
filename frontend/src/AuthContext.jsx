@@ -30,6 +30,14 @@ export function AuthProvider({ children }) {
     return u
   }, [])
 
+  // Re-reads the account from the server, for example after finishing
+  // authenticator setup.
+  const refresh = useCallback(async () => {
+    const u = await api('/me')
+    setUser(u)
+    return u
+  }, [])
+
   const logout = useCallback(async () => {
     try {
       await api('/logout', { method: 'POST' })
@@ -39,7 +47,7 @@ export function AuthProvider({ children }) {
   }, [])
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, refresh }}>
       {children}
     </AuthContext.Provider>
   )

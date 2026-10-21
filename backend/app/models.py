@@ -34,16 +34,26 @@ class User(db.Model):
 
     created_at = db.Column(db.DateTime, default=_utcnow, nullable=False)
 
+    # TOTP (verifiers only). The secret is never returned by any endpoint
+    # except the one-time setup screen. totp_last_step is the newest time
+    # step already accepted, which is what blocks a replayed code.
+    totp_secret = db.Column(db.String(64), nullable=True)
+    totp_confirmed = db.Column(db.Boolean, default=False, nullable=False)
+    totp_last_step = db.Column(db.Integer, nullable=True)
+
     enrolled_by = db.relationship("User", remote_side=[id])
 
     def to_dict(self):
-        return {
+        body = {
             "id": self.id,
             "name": self.name,
             "email": self.email,
             "role": self.role.value,
             "enrolled_by_id": self.enrolled_by_id,
         }
+        if self.role == Role.VERIFIER:
+            body["totp_confirmed"] = self.totp_confirmed
+        return body
 
 
 class Invite(db.Model):

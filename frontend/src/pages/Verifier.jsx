@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Navigate, useNavigate } from 'react-router-dom'
 import Screen from '../components/Screen'
 import AppHeader from '../components/AppHeader'
 import IconTile from '../components/IconTile'
 import Button from '../components/Button'
+import TextField from '../components/TextField'
 import { api } from '../api'
 import { useAuth } from '../AuthContext'
 
@@ -18,6 +19,8 @@ export default function Verifier() {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [sent, setSent] = useState('')
+  const [entering, setEntering] = useState(false)
+  const [code, setCode] = useState('')
 
   const load = useCallback(async () => {
     try {
@@ -39,8 +42,11 @@ export default function Verifier() {
     setBusy(true)
     setError('')
     try {
-      await api(`/requests/${req.id}/respond`, { method: 'POST', body: { decision } })
+      const body = decision === 'approve' ? { decision, code } : { decision }
+      await api(`/requests/${req.id}/respond`, { method: 'POST', body })
       setSent(decision)
+      setEntering(false)
+      setCode('')
     } catch (err) {
       // For example the request already finished or ran out of time.
       setError(err.message)
@@ -57,6 +63,11 @@ export default function Verifier() {
   }
 
   const current = inbox && inbox.length > 0 ? inbox[0] : null
+
+  // A family member must finish authenticator setup before approving.
+  if (user && user.role === 'verifier' && user.totp_confirmed === false) {
+    return <Navigate to="/verify/setup" replace />
+  }
 
   return (
     <Screen>
@@ -118,10 +129,45 @@ export default function Verifier() {
           )}
 
           <div className="flex-1" />
-          <div className="space-y-3">
-            <Button variant="choice" onClick={() => respond(current, 'approve')} disabled={busy}>Approve</Button>
-            <Button variant="choice" onClick={() => respond(current, 'decline')} disabled={busy}>Decline</Button>
-          </div>
+          {entering ? (
+            <form
+              onSubmit={(e) => {
+                e.preventDefault()
+                respond(current, 'approve')
+              }}
+              className="space-y-3"
+            >
+              <TextField
+                label="Code from your authenticator app"
+                id="approve-code"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={6}
+                autoFocus
+                value={code}
+                onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+              />
+              <Button variant="primary" type="submit" disabled={busy || code.length !== 6}>
+                Confirm approval
+              </Button>
+              <button
+                type="button"
+                onClick={() => {
+                  setEntering(false)
+                  setCode('')
+                  setError('')
+                }}
+                className="w-full text-sm text-slate py-2"
+              >
+                Back
+              </button>
+            </form>
+          ) : (
+            <div className="space-y-3">
+              <Button variant="choice" onClick={() => { setSent(''); setError(''); setEntering(true) }} disabled={busy}>Approve</Button>
+              <Button variant="choice" onClick={() => respond(current, 'decline')} disabled={busy}>Decline</Button>
+            </div>
+          )}
         </>
       )}
 

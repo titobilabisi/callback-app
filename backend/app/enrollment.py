@@ -14,6 +14,7 @@ from flask import Blueprint, jsonify, request
 
 from .auth import require_role
 from .models import Invite, Role, User, db
+from .totp import new_secret
 from .security import hash_password
 
 enrollment_bp = Blueprint("enrollment", __name__, url_prefix="/api")
@@ -97,6 +98,7 @@ def accept_invite():
         password_hash=hash_password(password),
         role=Role.VERIFIER,
         enrolled_by_id=invite.created_by_id,
+        totp_secret=new_secret(),
     )
     db.session.add(verifier)
     db.session.flush()  # gives verifier an id before the invite links to it
