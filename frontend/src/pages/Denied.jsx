@@ -4,6 +4,7 @@ import AppHeader from '../components/AppHeader'
 import StatusPill from '../components/StatusPill'
 import IconTile from '../components/IconTile'
 import Button from '../components/Button'
+import Mascot from '../components/Mascot'
 
 export default function Denied() {
   const navigate = useNavigate()
@@ -25,6 +26,7 @@ export default function Denied() {
           You did the right thing checking.
         </div>
       </div>
+      <Mascot mode="denied" className="absolute right-0 bottom-24" />
       <Button variant="danger" onClick={() => navigate('/home')}>Stay safe and close</Button>
     </Screen>
   )

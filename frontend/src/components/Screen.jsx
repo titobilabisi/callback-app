@@ -3,7 +3,7 @@
 export default function Screen({ children }) {
   return (
     <div className="min-h-screen flex items-start justify-center bg-[#eceeec] py-10 px-4">
-      <div className="w-full max-w-sm bg-white rounded-[28px] shadow-sm border border-black/5 min-h-[700px] flex flex-col p-6">
+      <div className="relative overflow-hidden w-full max-w-sm bg-white rounded-[28px] shadow-sm border border-black/5 min-h-[700px] flex flex-col p-6">
         {children}
       </div>
     </div>

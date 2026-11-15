@@ -4,6 +4,7 @@ import AppHeader from '../components/AppHeader'
 import StatusPill from '../components/StatusPill'
 import IconTile from '../components/IconTile'
 import Button from '../components/Button'
+import Mascot from '../components/Mascot'
 import { useCheck } from '../CheckContext'
 
 export default function Approved() {
@@ -31,6 +32,7 @@ export default function Approved() {
           </div>
         )}
       </div>
+      <Mascot mode="approved" className="absolute right-0 bottom-24" />
       <Button variant="success" onClick={() => navigate('/home')}>Call them back now</Button>
     </Screen>
   )
