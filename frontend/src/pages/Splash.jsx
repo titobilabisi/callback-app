@@ -10,7 +10,7 @@ export default function Splash() {
 
   useEffect(() => {
     if (loading) return undefined
-    const timer = setTimeout(() => navigate(next), 4000)
+    const timer = setTimeout(() => navigate(next), 4500)
     return () => clearTimeout(timer)
   }, [navigate, loading, next])
 
@@ -22,8 +22,8 @@ export default function Splash() {
         style={{ backgroundColor: '#f3ede1' }}
       >
         <Mascot mode="splash" className="-mt-6 mb-2" />
-        <h1 className="fade-up text-3xl font-semibold text-ink mb-3" style={{ animationDelay: '1.2s' }}>CallBack</h1>
-        <p className="fade-up text-center text-slate mb-14" style={{ animationDelay: '1.5s' }}>A calm second check before you act.</p>
+        <h1 className="fade-up text-3xl font-semibold text-ink mb-3" style={{ animationDelay: '1.6s' }}>CallBack</h1>
+        <p className="fade-up text-center text-slate mb-14" style={{ animationDelay: '2s' }}>A calm second check before you act.</p>
         <div className="flex gap-2 mb-4">
           <span className="w-1.5 h-1.5 rounded-full bg-teal" />
           <span className="w-1.5 h-1.5 rounded-full bg-teal/40" />
