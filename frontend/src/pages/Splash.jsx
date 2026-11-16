@@ -10,7 +10,7 @@ export default function Splash() {
 
   useEffect(() => {
     if (loading) return undefined
-    const timer = setTimeout(() => navigate(next), 2600)
+    const timer = setTimeout(() => navigate(next), 4000)
     return () => clearTimeout(timer)
   }, [navigate, loading, next])
 
