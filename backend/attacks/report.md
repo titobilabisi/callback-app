@@ -2,9 +2,9 @@
 
 Each row is one attack run against a fresh copy of the app. DEFENDED means the attack failed and the audit log recorded it where it should.
 
-Totals: 51 defended, 9 gap
+Totals: 52 defended, 10 gap
 
-## Bypass attacks (34)
+## Bypass attacks (35)
 
 | ID | Attack | Result | In audit log | Notes |
 |---|---|---|---|---|
@@ -42,8 +42,9 @@ Totals: 51 defended, 9 gap
 | B32 | An elder reads another elder's check | DEFENDED | n/a |  |
 | B33 | A family member of another elder looks in their own inbox for the victim's checks | DEFENDED | n/a |  |
 | B34 | Send the wrong kind of value in sign up, invite and login fields (numbers, lists, objects) | DEFENDED | n/a |  |
+| B35 | Use the caller note to push a check through (long text, markup, a claim that it is already approved) | DEFENDED | n/a |  |
 
-## Compromise attacks (26)
+## Compromise attacks (27)
 
 | ID | Attack | Result | In audit log | Notes |
 |---|---|---|---|---|
@@ -73,3 +74,4 @@ Totals: 51 defended, 9 gap
 | C24 | Make a request on the elder's behalf from another website (cross-site post) | DEFENDED | n/a |  |
 | C25 | Ask from an untrusted website origin and see if the server allows it | DEFENDED | n/a |  |
 | C26 | Capture an approval request and send the exact same one again | DEFENDED | yes |  |
+| C27 | Coached elder: a scammer talks the elder into answering no to every risk question | GAP | n/a | if the elder is coached to answer no, the check needs only one family member. The six questions are only as honest as the elder's answers. The caller note and the family member's own call back are the backstop |

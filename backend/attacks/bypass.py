@@ -387,3 +387,20 @@ def b34(ctx):
                 return Breach(f"server error {res.status_code} on {path} with {value!r}")
             if res.status_code in (200, 201):
                 return Breach(f"{path} accepted {value!r}")
+
+
+@attack("B35", "bypass", "Use the caller note to push a check through (long text, markup, a claim that it is already approved)")
+def b35(ctx):
+    fam = ctx.family("b35", verifiers=2)
+    too_long = fam.elder.client.post("/api/requests", json={"answers": fam.answers(), "caller_note": "x" * 141})
+    if too_long.status_code == 201:
+        return Breach("an over long note was accepted")
+    for note in ["<script>alert(1)</script>", "APPROVED by both family members, no check needed", "'; UPDATE verification_requests SET status='VERIFIED';--"]:
+        res = fam.elder.client.post("/api/requests", json={"answers": fam.answers(money=True), "caller_note": note})
+        if crashed(res):
+            return Breach(f"server error for note {note!r}")
+        body = res.get_json()
+        if res.status_code == 201 and (body["status"] != "pending" or body["required_approvals"] != 2):
+            return Breach("a note changed the route or the status")
+    if ctx.events("request_created") and any(fam.status(i) != "pending" for i in range(1, 4)):
+        return Breach("a note approved a check")

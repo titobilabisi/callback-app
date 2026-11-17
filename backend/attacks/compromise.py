@@ -374,3 +374,12 @@ def c26(ctx):
     second = fam.vs[0].client.post(f"/api/requests/{rid}/respond", json=body)
     if second.status_code == 200 or fam.status(rid) == "verified":
         return Breach("a captured approval worked twice")
+
+
+@attack("C27", "compromise", "Coached elder: a scammer talks the elder into answering no to every risk question")
+def c27(ctx):
+    fam = ctx.family("c27", verifiers=2)
+    rid = fam.open(money=False)  # the elder says "no money asked", though it is a scam
+    fam.approve(0, rid)
+    if fam.status(rid) == "verified":
+        return Gap("if the elder is coached to answer no, the check needs only one family member. The six questions are only as honest as the elder's answers. The caller note and the family member's own call back are the backstop")

@@ -41,7 +41,7 @@ cd backend
 ./venv/bin/python -m attacks.run_all
 ```
 
-Runs 60 attacks (34 bypass, 26 compromise), each on its own fresh copy of the app and a throwaway database, and writes `backend/attacks/report.md`. Each attack ends as one of:
+Runs 62 attacks (35 bypass, 27 compromise), each on its own fresh copy of the app and a throwaway database, and writes `backend/attacks/report.md`. Each attack ends as one of:
 
 - DEFENDED: it was stopped, and where it matters the audit log recorded it.
 - GAP: it worked because of a known limit of the design. Each one is explained in the report.
