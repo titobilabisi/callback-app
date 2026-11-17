@@ -30,6 +30,7 @@ def create_app(config_overrides=None):
         origins=["http://localhost:5173", "http://127.0.0.1:5173"],
     )
 
+    from .activity import activity_bp
     from .auth import auth_bp
     from .enrollment import enrollment_bp
     from .totp import totp_bp
@@ -39,6 +40,7 @@ def create_app(config_overrides=None):
     app.register_blueprint(auth_bp)
     app.register_blueprint(verification_bp)
     app.register_blueprint(totp_bp)
+    app.register_blueprint(activity_bp)
 
     with app.app_context():
         db.create_all()

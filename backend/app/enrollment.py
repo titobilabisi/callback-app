@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 
 from flask import Blueprint, jsonify, request
 
+from .audit import log
 from .auth import require_role
 from .models import Invite, Role, User, db
 from .totp import new_secret
@@ -38,6 +39,8 @@ def create_elder():
 
     elder = User(name=name, email=email, password_hash=hash_password(password), role=Role.ELDER)
     db.session.add(elder)
+    db.session.flush()
+    log("elder_created", actor=elder, commit=False)
     db.session.commit()
 
     return jsonify(elder.to_dict()), 201
@@ -55,6 +58,7 @@ def create_invite(elder, elder_id):
     a "family member", and approve a scam call.
     """
     if elder.id != elder_id:
+        log("invite_rejected", outcome="rejected", actor=elder, detail={"reason": "not_your_family", "target_elder_id": elder_id})
         return jsonify({"error": "you can only invite people to your own family"}), 403
 
     data = request.get_json(silent=True) or {}
@@ -62,6 +66,8 @@ def create_invite(elder, elder_id):
 
     invite = Invite.new_for(elder, verifier_name_hint=verifier_name_hint)
     db.session.add(invite)
+    db.session.flush()
+    log("invite_created", actor=elder, commit=False, detail={"invite_id": invite.id})
     db.session.commit()
 
     return jsonify(invite.to_dict()), 201
@@ -84,9 +90,16 @@ def accept_invite():
 
     invite = Invite.query.filter_by(token=token).first()
     if invite is None:
+        log("invite_rejected", outcome="rejected", detail={"reason": "not_found"})
         return jsonify({"error": "invite not found"}), 404
     if not invite.is_valid:
         reason = "expired" if invite.is_expired else "already used"
+        log(
+            "invite_rejected",
+            outcome="rejected",
+            elder_id=invite.created_by_id,
+            detail={"reason": reason.replace(" ", "_"), "invite_id": invite.id},
+        )
         return jsonify({"error": f"this invite is {reason}"}), 410
 
     if User.query.filter_by(email=email).first():
@@ -105,6 +118,7 @@ def accept_invite():
 
     invite.used_at = datetime.now(timezone.utc).replace(tzinfo=None)
     invite.used_by_id = verifier.id
+    log("verifier_enrolled", actor=verifier, commit=False, detail={"invite_id": invite.id})
     db.session.commit()
 
     return jsonify(verifier.to_dict()), 201

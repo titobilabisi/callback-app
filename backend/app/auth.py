@@ -6,13 +6,14 @@ anything the client sends, so the server-side authorization check the
 threat model asks for happens on every verifier and elder action, not
 just at login.
 
-Login is rate limited (see limiter.py). Not here yet (Phase 4): audit event
-logging.
+Login is rate limited (see limiter.py). Logins, failures and refused
+access are written to the audit log (see audit.py).
 """
 from functools import wraps
 
 from flask import Blueprint, jsonify, request, session
 
+from .audit import log
 from .limiter import email_key, limiter
 from .models import Role, User, db
 from .security import hash_password, verify_password
@@ -39,8 +40,15 @@ def require_role(role: Role):
         def wrapped(*args, **kwargs):
             user = current_user()
             if user is None:
+                log("access_denied", outcome="rejected", detail={"path": request.path, "reason": "not_logged_in"})
                 return jsonify({"error": "not logged in"}), 401
             if user.role != role:
+                log(
+                    "access_denied",
+                    outcome="rejected",
+                    actor=user,
+                    detail={"path": request.path, "reason": "wrong_role", "needs": role.value},
+                )
                 return jsonify({"error": "this action is not available for your account type"}), 403
             return view(user, *args, **kwargs)
 
@@ -64,17 +72,23 @@ def login():
     user = User.query.filter_by(email=email).first()
     if user is None:
         verify_password(_DUMMY_HASH, password)
+        log("login_failed", outcome="rejected", detail={"reason": "unknown_email", "email": email[:120]})
         return jsonify({"error": "wrong email or password"}), 401
     if not verify_password(user.password_hash, password):
+        log("login_failed", outcome="rejected", actor=user, detail={"reason": "wrong_password"})
         return jsonify({"error": "wrong email or password"}), 401
 
     session.clear()
     session["user_id"] = user.id
+    log("login_success", actor=user)
     return jsonify(user.to_dict())
 
 
 @auth_bp.post("/logout")
 def logout():
+    user = current_user()
+    if user is not None:
+        log("logout", actor=user)
     session.clear()
     return jsonify({"ok": True})
 

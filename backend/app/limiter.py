@@ -25,4 +25,10 @@ limiter = Limiter(key_func=get_remote_address, storage_uri="memory://")
 
 
 def too_many(_err):
+    # Imported here because audit.py needs the models, which need nothing
+    # from this file, and keeping it local avoids a circular import.
+    from .audit import log
+    from .auth import current_user
+
+    log("rate_limited", outcome="rejected", actor=current_user(), detail={"path": request.path})
     return jsonify({"error": "too many attempts. Wait a few minutes and try again."}), 429

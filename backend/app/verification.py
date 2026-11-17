@@ -21,6 +21,7 @@ from flask import Blueprint, current_app, jsonify, request
 from sqlalchemy.exc import IntegrityError
 
 from . import totp
+from .audit import log
 from .auth import require_role
 from .limiter import limiter, user_or_ip
 from .models import (
@@ -76,14 +77,17 @@ def create_request(elder):
     try:
         assessment = assess(data.get("answers"))
     except InvalidAnswers as err:
+        log("request_rejected", outcome="rejected", actor=elder, detail={"reason": "invalid_answers"})
         return jsonify({"error": str(err)}), 400
 
     note, note_error = _clean_note(data.get("caller_note"))
     if note_error:
+        log("request_rejected", outcome="rejected", actor=elder, detail={"reason": "invalid_note"})
         return jsonify({"error": note_error}), 400
 
     verifiers = _enrolled_verifiers(elder)
     if not verifiers:
+        log("request_rejected", outcome="rejected", actor=elder, detail={"reason": "no_family_enrolled"})
         return jsonify({"error": "no family members are enrolled yet, so nobody can check this call"}), 409
 
     ttl = current_app.config.get("REQUEST_TTL_SECONDS", DEFAULT_REQUEST_TTL_SECONDS)
@@ -96,6 +100,14 @@ def create_request(elder):
         expires_at=_utcnow() + timedelta(seconds=ttl),
     )
     db.session.add(req)
+    db.session.flush()
+    log(
+        "request_created",
+        actor=elder,
+        request_id=req.id,
+        commit=False,
+        detail={"route": req.route, "required_approvals": req.required_approvals, "enrolled_verifiers": len(verifiers)},
+    )
     db.session.commit()
 
     body = req.to_dict()
@@ -165,32 +177,40 @@ def respond(verifier, request_id):
     try:
         decision = Decision(data.get("decision"))
     except ValueError:
+        log("response_rejected", outcome="rejected", actor=verifier, request_id=request_id, detail={"reason": "invalid_decision"})
         return jsonify({"error": "decision must be 'approve' or 'decline'"}), 400
 
     req = db.session.get(VerificationRequest, request_id)
     if req is None:
+        log("response_rejected", outcome="rejected", actor=verifier, request_id=request_id, detail={"reason": "request_not_found"})
         return jsonify({"error": "request not found"}), 404
 
     # Checked on every response, not just at login.
     if verifier.enrolled_by_id != req.elder_id:
+        log("response_rejected", outcome="rejected", actor=verifier, elder_id=req.elder_id, request_id=req.id, detail={"reason": "not_enrolled_for_this_person"})
         return jsonify({"error": "you are not enrolled as a verifier for this person"}), 403
 
     req.settle_if_expired()
     if req.status == RequestStatus.UNABLE_TO_VERIFY:
+        log("response_rejected", outcome="rejected", actor=verifier, elder_id=req.elder_id, request_id=req.id, detail={"reason": "expired"}, commit=False)
         db.session.commit()
         return jsonify({"error": "this request has expired"}), 410
     if req.status != RequestStatus.PENDING:
+        log("response_rejected", outcome="rejected", actor=verifier, elder_id=req.elder_id, request_id=req.id, detail={"reason": "already_finished", "status": req.status.value})
         return jsonify({"error": f"this request is already {req.status.value}"}), 409
 
     if any(r.verifier_id == verifier.id for r in req.responses):
+        log("response_rejected", outcome="rejected", actor=verifier, elder_id=req.elder_id, request_id=req.id, detail={"reason": "duplicate_response"})
         return jsonify({"error": "you already responded to this request"}), 409
 
     # Declining is the safe direction, so it needs nothing extra. Approving
     # needs a valid, unused code from the family member's authenticator app.
     if decision == Decision.APPROVE:
         if not verifier.totp_confirmed:
+            log("response_rejected", outcome="rejected", actor=verifier, elder_id=req.elder_id, request_id=req.id, detail={"reason": "authenticator_not_set_up"})
             return jsonify({"error": "set up your authenticator app before approving", "code": "totp_setup_required"}), 403
         if not totp.verify_and_consume(verifier, data.get("code")):
+            log("response_rejected", outcome="rejected", actor=verifier, elder_id=req.elder_id, request_id=req.id, detail={"reason": "bad_or_reused_code"})
             return jsonify({"error": "that code is not right or was already used. Wait for a new code and try again."}), 401
 
     db.session.add(VerificationResponse(request_id=req.id, verifier_id=verifier.id, decision=decision))
@@ -199,15 +219,32 @@ def respond(verifier, request_id):
     except IntegrityError:
         # Backstop for the unique constraint if two submissions race.
         db.session.rollback()
+        log("response_rejected", outcome="rejected", actor=verifier, elder_id=req.elder_id, request_id=req.id, detail={"reason": "duplicate_response"})
         return jsonify({"error": "you already responded to this request"}), 409
 
     db.session.refresh(req)
+    log(
+        "response_approved" if decision == Decision.APPROVE else "response_declined",
+        actor=verifier,
+        elder_id=req.elder_id,
+        request_id=req.id,
+        commit=False,
+    )
     if decision == Decision.DECLINE:
         req.status = RequestStatus.DENIED
         req.resolved_at = _utcnow()
     elif req.approvals >= req.required_approvals:
         req.status = RequestStatus.VERIFIED
         req.resolved_at = _utcnow()
+    if req.status != RequestStatus.PENDING:
+        log(
+            "request_resolved",
+            actor=verifier,
+            elder_id=req.elder_id,
+            request_id=req.id,
+            commit=False,
+            detail={"status": req.status.value, "approvals": req.approvals},
+        )
 
     db.session.commit()
     return jsonify(req.to_dict())

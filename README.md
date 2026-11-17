@@ -15,7 +15,7 @@ This repo is being built in stages that match the project proposal timeline.
 
 The screens now run against the real backend: an elder signs up, invites family members, answers the six risk questions, and each family member approves or declines on their own device. The elder's screen shows the result.
 
-Phase 4 so far: family members approve with a TOTP code from an authenticator app (RFC 6238, one use per code, so a replayed code is rejected), and login and code guessing are rate limited. Still to do: audit event logging, and the 30 bypass / 20 compromise adversarial scripts. Passwords are hashed with Argon2id and sessions are signed HttpOnly cookies.
+Phase 4 so far: family members approve with a TOTP code from an authenticator app (RFC 6238, one use per code, so a replayed code is rejected), and login and code guessing are rate limited. Audit logging is in: every login, invite, approval, refusal and timeout is written to an append only, hash chained log (see `backend/app/audit.py`), and an elder can read their family's activity at `GET /api/audit`. Still to do: the 30 bypass / 20 compromise adversarial scripts. Passwords are hashed with Argon2id and sessions are signed HttpOnly cookies.
 
 After pulling this update, run `pip install -r requirements.txt` in `backend`, `npm install` in `frontend`, and delete `backend/instance/callback.db` once (the database gained columns).
 

@@ -17,6 +17,7 @@ import time
 import pyotp
 from flask import Blueprint, current_app, jsonify, request
 
+from .audit import log
 from .auth import require_role
 from .limiter import limiter
 from .models import Role, db
@@ -91,7 +92,9 @@ def totp_confirm(verifier):
         return jsonify({"error": "already set up"}), 409
     data = request.get_json(silent=True) or {}
     if not verify_and_consume(verifier, data.get("code")):
+        log("totp_confirm_failed", outcome="rejected", actor=verifier)
         return jsonify({"error": "that code is not right. Check the app and try the newest code."}), 401
     verifier.totp_confirmed = True
+    log("totp_confirmed", actor=verifier, commit=False)
     db.session.commit()
     return jsonify({"confirmed": True})

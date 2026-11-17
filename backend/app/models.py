@@ -1,7 +1,10 @@
 import enum
+import hashlib
+import json
 from datetime import datetime, timedelta, timezone
 
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import event
 
 from .security import generate_invite_token
 
@@ -177,6 +180,12 @@ class VerificationRequest(db.Model):
         if self.status == RequestStatus.PENDING and self.is_expired:
             self.status = RequestStatus.UNABLE_TO_VERIFY
             self.resolved_at = self.expires_at
+            AuditEvent.record(
+                "request_resolved",
+                elder_id=self.elder_id,
+                request_id=self.id,
+                detail={"status": "unable_to_verify", "reason": "timeout"},
+            )
 
     @property
     def approvals(self) -> int:
@@ -217,3 +226,90 @@ class VerificationResponse(db.Model):
     created_at = db.Column(db.DateTime, default=_utcnow, nullable=False)
 
     verifier = db.relationship("User", foreign_keys=[verifier_id])
+
+
+class AuditEvent(db.Model):
+    """One line of the audit log. See audit.py for what is recorded.
+
+    Append only: each event stores the hash of the one before it (prev_hash)
+    and its own hash, so editing or removing an old row breaks the chain.
+    Nothing here ever holds a password, code, token or secret.
+    """
+
+    __tablename__ = "audit_events"
+
+    id = db.Column(db.Integer, primary_key=True)
+    created_at = db.Column(db.DateTime, nullable=False)
+    event_type = db.Column(db.String(40), nullable=False)
+    outcome = db.Column(db.String(10), nullable=False)  # "ok" or "rejected"
+    actor_id = db.Column(db.Integer, nullable=True)  # who did it, if known
+    elder_id = db.Column(db.Integer, nullable=True, index=True)  # whose family it belongs to
+    request_id = db.Column(db.Integer, nullable=True)
+    ip = db.Column(db.String(64), nullable=True)
+    detail = db.Column(db.JSON, nullable=True)
+    prev_hash = db.Column(db.String(64), nullable=False)
+    hash = db.Column(db.String(64), nullable=False)
+
+    GENESIS = "0" * 64
+
+    @staticmethod
+    def _digest(prev_hash, created_at, event_type, outcome, actor_id, elder_id, request_id, ip, detail):
+        payload = json.dumps(
+            [prev_hash, created_at.isoformat(), event_type, outcome, actor_id, elder_id, request_id, ip, detail],
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        return hashlib.sha256(payload.encode()).hexdigest()
+
+    @classmethod
+    def record(cls, event_type, *, outcome="ok", actor_id=None, elder_id=None, request_id=None, ip=None, detail=None):
+        last = db.session.query(cls.hash).order_by(cls.id.desc()).first()
+        prev_hash = last[0] if last else cls.GENESIS
+        created_at = _utcnow()
+        event = cls(
+            created_at=created_at,
+            event_type=event_type,
+            outcome=outcome,
+            actor_id=actor_id,
+            elder_id=elder_id,
+            request_id=request_id,
+            ip=ip,
+            detail=detail,
+            prev_hash=prev_hash,
+            hash=cls._digest(prev_hash, created_at, event_type, outcome, actor_id, elder_id, request_id, ip, detail),
+        )
+        db.session.add(event)
+        return event
+
+    @classmethod
+    def verify_chain(cls):
+        """(True, None) if every event matches its hash and links to the one
+        before it. Otherwise (False, id of the first event that does not).
+        """
+        prev_hash = cls.GENESIS
+        for e in cls.query.order_by(cls.id).all():
+            expected = cls._digest(
+                prev_hash, e.created_at, e.event_type, e.outcome, e.actor_id, e.elder_id, e.request_id, e.ip, e.detail
+            )
+            if e.prev_hash != prev_hash or e.hash != expected:
+                return False, e.id
+            prev_hash = e.hash
+        return True, None
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "created_at": self.created_at.isoformat(),
+            "event_type": self.event_type,
+            "outcome": self.outcome,
+            "actor_id": self.actor_id,
+            "request_id": self.request_id,
+            "ip": self.ip,
+            "detail": self.detail,
+        }
+
+
+@event.listens_for(AuditEvent, "before_update")
+@event.listens_for(AuditEvent, "before_delete")
+def _audit_is_append_only(mapper, connection, target):
+    raise RuntimeError("audit events cannot be changed or deleted")
