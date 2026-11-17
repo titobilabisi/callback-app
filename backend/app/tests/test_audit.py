@@ -237,3 +237,14 @@ def test_a_family_member_cannot_read_the_log(app):
     family = Family(app, verifiers=1)
     assert family.verifier_clients[0].get("/api/audit").status_code == 403
     assert new_client(app).get("/api/audit").status_code == 401
+
+
+def test_events_include_the_name_of_who_did_it(app):
+    family = Family(app, verifiers=2)
+    req = family.open_request()
+    family.respond(0, req["id"], "approve")
+    body = family.elder_client.get("/api/audit").get_json()
+    approved = [e for e in body if e["event_type"] == "response_approved"][0]
+    assert approved["actor_name"] == "Verifier 0"
+    created = [e for e in body if e["event_type"] == "request_created"][0]
+    assert created["actor_name"] == "Grandma"

@@ -4,7 +4,7 @@ audit.py; this is only how an elder reads their family's activity.
 from flask import Blueprint, jsonify
 
 from .auth import require_role
-from .models import AuditEvent, Role
+from .models import AuditEvent, Role, User
 
 activity_bp = Blueprint("activity", __name__, url_prefix="/api")
 
@@ -21,7 +21,16 @@ def list_events(elder):
         .limit(MAX_EVENTS)
         .all()
     )
-    return jsonify([e.to_dict() for e in events])
+    # Names for the people in this family, so the screen can say "Aunt Jane
+    # approved" instead of a number. Only this elder's own family is looked up.
+    family = User.query.filter((User.id == elder.id) | (User.enrolled_by_id == elder.id)).all()
+    names = {u.id: u.name for u in family}
+    body = []
+    for e in events:
+        item = e.to_dict()
+        item["actor_name"] = names.get(e.actor_id)
+        body.append(item)
+    return jsonify(body)
 
 
 @activity_bp.get("/audit/verify")

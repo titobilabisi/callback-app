@@ -40,6 +40,7 @@ export default function Home() {
         </div>
         <div className="flex items-center justify-center gap-6 text-sm pt-1">
           <button type="button" onClick={() => navigate('/family')} className="text-teal underline">My family</button>
+          <button type="button" onClick={() => navigate('/activity')} className="text-teal underline">Activity</button>
           <button type="button" onClick={signOut} className="text-slate underline">Sign out</button>
         </div>
       </div>

@@ -7,6 +7,7 @@ import SignIn from './pages/SignIn'
 import Signup from './pages/Signup'
 import Join from './pages/Join'
 import Family from './pages/Family'
+import Activity from './pages/Activity'
 import Home from './pages/Home'
 import RiskQuestion from './pages/RiskQuestion'
 import CallerNote from './pages/CallerNote'
@@ -32,6 +33,7 @@ export default function App() {
           <Route path="/join/:token" element={<Join />} />
           <Route path="/home" element={elder(<Home />)} />
           <Route path="/family" element={elder(<Family />)} />
+          <Route path="/activity" element={elder(<Activity />)} />
           <Route path="/check/note" element={elder(<CallerNote />)} />
           <Route path="/check/:step" element={elder(<RiskQuestion />)} />
           <Route path="/waiting" element={elder(<Waiting />)} />
