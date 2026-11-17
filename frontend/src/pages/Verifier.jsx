@@ -16,6 +16,7 @@ export default function Verifier() {
   const navigate = useNavigate()
   const { user, logout } = useAuth()
   const [inbox, setInbox] = useState(null)
+  const [alerts, setAlerts] = useState([])
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [sent, setSent] = useState('')
@@ -25,6 +26,7 @@ export default function Verifier() {
   const load = useCallback(async () => {
     try {
       setInbox(await api('/verifier/requests'))
+      setAlerts(await api('/verifier/alerts'))
       setError('')
     } catch (err) {
       if (err.status === 401) navigate('/signin', { replace: true })
@@ -57,6 +59,15 @@ export default function Verifier() {
     }
   }
 
+  async function handleAlert(id) {
+    try {
+      await api(`/verifier/alerts/${id}/handle`, { method: 'POST' })
+    } catch (err) {
+      setError(err.message)
+    }
+    load()
+  }
+
   async function signOut() {
     await logout()
     navigate('/signin', { replace: true })
@@ -72,6 +83,16 @@ export default function Verifier() {
   return (
     <Screen>
       <AppHeader />
+
+      {alerts.map((a) => (
+        <div key={a.id} role="alert" className="bg-danger-bg text-danger-ink rounded-2xl p-4 mb-4">
+          <p className="font-semibold mb-1">{a.elder_name} pressed the panic alert</p>
+          <p className="text-sm mb-3">They may be on a pressuring call right now. Call them directly.</p>
+          <button type="button" onClick={() => handleAlert(a.id)} className="w-full bg-white/70 rounded-xl py-2 text-sm font-medium">
+            I'm handling it
+          </button>
+        </div>
+      ))}
 
       {sent && (
         <p role="status" className="bg-success-bg text-success-ink rounded-2xl p-3 text-sm mb-4">

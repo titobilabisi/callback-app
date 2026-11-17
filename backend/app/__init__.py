@@ -60,6 +60,7 @@ def create_app(config_overrides=None):
     from .activity import activity_bp
     from .auth import auth_bp
     from .enrollment import enrollment_bp
+    from .panic import panic_bp
     from .totp import totp_bp
     from .verification import verification_bp
 
@@ -68,6 +69,7 @@ def create_app(config_overrides=None):
     app.register_blueprint(verification_bp)
     app.register_blueprint(totp_bp)
     app.register_blueprint(activity_bp)
+    app.register_blueprint(panic_bp)
 
     with app.app_context():
         db.create_all()

@@ -230,6 +230,35 @@ class VerificationResponse(db.Model):
     verifier = db.relationship("User", foreign_keys=[verifier_id])
 
 
+class PanicAlert(db.Model):
+    """A one tap alert from an older adult who feels pressured on a call.
+    Every family member enrolled under them sees it until one of them marks
+    it as handled.
+    """
+
+    __tablename__ = "panic_alerts"
+
+    id = db.Column(db.Integer, primary_key=True)
+    elder_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    created_at = db.Column(db.DateTime, default=_utcnow, nullable=False)
+    handled_at = db.Column(db.DateTime, nullable=True)
+    handled_by_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+
+    elder = db.relationship("User", foreign_keys=[elder_id])
+
+    @property
+    def is_open(self) -> bool:
+        return self.handled_at is None
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "elder_name": self.elder.name,
+            "created_at": self.created_at.isoformat(),
+            "handled": self.handled_at is not None,
+        }
+
+
 class AuditEvent(db.Model):
     """One line of the audit log. See audit.py for what is recorded.
 

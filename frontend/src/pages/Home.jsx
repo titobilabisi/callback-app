@@ -35,6 +35,7 @@ export default function Home() {
       </div>
       <div className="space-y-3">
         <Button variant="primary" onClick={startCheck}>I got a call, help me check</Button>
+        <Button variant="danger" onClick={() => navigate('/panic')}>I feel pressured, alert my family</Button>
         <div className="flex items-center justify-center gap-2 text-sm text-teal bg-teal-light rounded-2xl py-3">
           <span>It's always okay to pause a call.</span>
         </div>

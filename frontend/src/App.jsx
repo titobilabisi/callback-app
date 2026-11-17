@@ -9,6 +9,7 @@ import Join from './pages/Join'
 import Family from './pages/Family'
 import Activity from './pages/Activity'
 import Home from './pages/Home'
+import Panic from './pages/Panic'
 import RiskQuestion from './pages/RiskQuestion'
 import CallerNote from './pages/CallerNote'
 import Waiting from './pages/Waiting'
@@ -32,6 +33,7 @@ export default function App() {
           <Route path="/signup" element={<Signup />} />
           <Route path="/join/:token" element={<Join />} />
           <Route path="/home" element={elder(<Home />)} />
+          <Route path="/panic" element={elder(<Panic />)} />
           <Route path="/family" element={elder(<Family />)} />
           <Route path="/activity" element={elder(<Activity />)} />
           <Route path="/check/note" element={elder(<CallerNote />)} />

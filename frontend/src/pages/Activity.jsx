@@ -58,6 +58,10 @@ function describe(e) {
     case 'response_declined': return `${who} declined your check`
     case 'response_rejected': return `${who}'s answer was not accepted${because}`
     case 'request_resolved': return RESULTS[e.detail?.status] || 'Check finished'
+    case 'panic_raised': return `You sent a panic alert (${e.detail?.notified ?? 0} family told)`
+    case 'panic_repeated': return 'You pressed the panic alert again while one was open'
+    case 'panic_handled': return `${who} said they are handling your alert`
+    case 'panic_rejected': return `${who} tried to open an alert that was not theirs`
     default: return 'Something happened'
   }
 }

@@ -7,6 +7,7 @@ What gets recorded (the event_type column):
   approvals    totp_confirmed, totp_confirm_failed
   requests     request_created, request_rejected, response_approved,
                response_declined, response_rejected, request_resolved
+  panic        panic_raised, panic_repeated, panic_handled, panic_rejected
 
 Rules, each with a test:
   * Rejected and failed attempts are logged as well as successes, because
