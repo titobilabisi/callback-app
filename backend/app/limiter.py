@@ -9,6 +9,8 @@ from flask import jsonify, request, session
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
+from .inputs import json_body
+
 
 def user_or_ip() -> str:
     uid = session.get("user_id")
@@ -16,9 +18,8 @@ def user_or_ip() -> str:
 
 
 def email_key() -> str:
-    data = request.get_json(silent=True) or {}
-    email = data.get("email") if isinstance(data, dict) else None
-    return f"email:{str(email or '').strip().lower()}"
+    email = json_body().get("email")
+    return f"email:{email.strip().lower() if isinstance(email, str) else ''}"
 
 
 limiter = Limiter(key_func=get_remote_address, storage_uri="memory://")

@@ -1,8 +1,10 @@
 import enum
 import hashlib
+import hmac
 import json
 from datetime import datetime, timedelta, timezone
 
+from flask import current_app
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import event
 
@@ -259,7 +261,11 @@ class AuditEvent(db.Model):
             sort_keys=True,
             separators=(",", ":"),
         )
-        return hashlib.sha256(payload.encode()).hexdigest()
+        # Keyed with the server's secret key, which is not stored in the
+        # database. Someone who can only write to the database can change a
+        # row but cannot recompute the hashes that follow it.
+        key = current_app.config["SECRET_KEY"].encode()
+        return hmac.new(key, payload.encode(), hashlib.sha256).hexdigest()
 
     @classmethod
     def record(cls, event_type, *, outcome="ok", actor_id=None, elder_id=None, request_id=None, ip=None, detail=None):

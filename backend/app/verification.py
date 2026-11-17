@@ -17,12 +17,13 @@ The rules this file enforces, each of which has a test:
 """
 from datetime import timedelta
 
-from flask import Blueprint, current_app, jsonify, request
+from flask import Blueprint, current_app, jsonify
 from sqlalchemy.exc import IntegrityError
 
 from . import totp
 from .audit import log
 from .auth import require_role
+from .inputs import json_body
 from .limiter import limiter, user_or_ip
 from .models import (
     Decision,
@@ -72,7 +73,7 @@ def risk_questions():
 @require_role(Role.ELDER)
 def create_request(elder):
     """An elder submits their six answers. The server decides the route."""
-    data = request.get_json(silent=True) or {}
+    data = json_body()
 
     try:
         assessment = assess(data.get("answers"))
@@ -173,7 +174,7 @@ def _wrong_code(response):
 @limiter.limit("5 per 15 minutes", key_func=user_or_ip, deduct_when=_wrong_code)
 @require_role(Role.VERIFIER)
 def respond(verifier, request_id):
-    data = request.get_json(silent=True) or {}
+    data = json_body()
     try:
         decision = Decision(data.get("decision"))
     except ValueError:

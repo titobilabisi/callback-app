@@ -15,10 +15,11 @@ import hmac
 import time
 
 import pyotp
-from flask import Blueprint, current_app, jsonify, request
+from flask import Blueprint, current_app, jsonify
 
 from .audit import log
 from .auth import require_role
+from .inputs import json_body
 from .limiter import limiter
 from .models import Role, db
 
@@ -51,7 +52,7 @@ def verify_and_consume(user, code, at=None) -> bool:
     if not user.totp_secret or not isinstance(code, str):
         return False
     code = code.replace(" ", "")
-    if len(code) != 6 or not code.isdigit():
+    if len(code) != 6 or not code.isascii() or not code.isdigit():
         return False
 
     totp = pyotp.TOTP(user.totp_secret, interval=STEP_SECONDS)
@@ -90,7 +91,7 @@ def totp_confirm(verifier):
     """Setup is complete once they type a valid code from their app."""
     if verifier.totp_confirmed:
         return jsonify({"error": "already set up"}), 409
-    data = request.get_json(silent=True) or {}
+    data = json_body()
     if not verify_and_consume(verifier, data.get("code")):
         log("totp_confirm_failed", outcome="rejected", actor=verifier)
         return jsonify({"error": "that code is not right. Check the app and try the newest code."}), 401

@@ -14,6 +14,7 @@ from functools import wraps
 from flask import Blueprint, jsonify, request, session
 
 from .audit import log
+from .inputs import json_body, text
 from .limiter import email_key, limiter
 from .models import Role, User, db
 from .security import hash_password, verify_password
@@ -65,9 +66,9 @@ def _failed_login(response):
 @limiter.limit("30 per minute")
 @limiter.limit("5 per 15 minutes", key_func=email_key, deduct_when=_failed_login)
 def login():
-    data = request.get_json(silent=True) or {}
-    email = (data.get("email") or "").strip().lower()
-    password = data.get("password") or ""
+    data = json_body()
+    email = text(data.get("email")).strip().lower()
+    password = text(data.get("password"))
 
     user = User.query.filter_by(email=email).first()
     if user is None:

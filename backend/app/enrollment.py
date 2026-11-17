@@ -10,10 +10,11 @@ than the elder's own account actively creating that invite.
 """
 from datetime import datetime, timezone
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify
 
 from .audit import log
 from .auth import require_role
+from .inputs import json_body, text
 from .models import Invite, Role, User, db
 from .totp import new_secret
 from .security import hash_password
@@ -26,10 +27,10 @@ def create_elder():
     """Create the first account for an older adult. This is the only
     account type that can ever sign up on its own, with no invite needed.
     """
-    data = request.get_json(silent=True) or {}
-    name = (data.get("name") or "").strip()
-    email = (data.get("email") or "").strip().lower()
-    password = data.get("password") or ""
+    data = json_body()
+    name = text(data.get("name")).strip()
+    email = text(data.get("email")).strip().lower()
+    password = text(data.get("password"))
 
     if not name or not email or len(password) < 8:
         return jsonify({"error": "name, email, and a password of at least 8 characters are required"}), 400
@@ -61,8 +62,8 @@ def create_invite(elder, elder_id):
         log("invite_rejected", outcome="rejected", actor=elder, detail={"reason": "not_your_family", "target_elder_id": elder_id})
         return jsonify({"error": "you can only invite people to your own family"}), 403
 
-    data = request.get_json(silent=True) or {}
-    verifier_name_hint = (data.get("verifier_name_hint") or "").strip() or None
+    data = json_body()
+    verifier_name_hint = text(data.get("verifier_name_hint")).strip() or None
 
     invite = Invite.new_for(elder, verifier_name_hint=verifier_name_hint)
     db.session.add(invite)
@@ -79,11 +80,11 @@ def accept_invite():
     token. No invite, no account. An expired or already used token is
     rejected, not silently accepted.
     """
-    data = request.get_json(silent=True) or {}
-    token = data.get("invite_token") or ""
-    name = (data.get("name") or "").strip()
-    email = (data.get("email") or "").strip().lower()
-    password = data.get("password") or ""
+    data = json_body()
+    token = text(data.get("invite_token"))
+    name = text(data.get("name")).strip()
+    email = text(data.get("email")).strip().lower()
+    password = text(data.get("password"))
 
     if not token or not name or not email or len(password) < 8:
         return jsonify({"error": "invite_token, name, email, and a password of at least 8 characters are required"}), 400

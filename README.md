@@ -15,7 +15,7 @@ This repo is being built in stages that match the project proposal timeline.
 
 The screens now run against the real backend: an elder signs up, invites family members, answers the six risk questions, and each family member approves or declines on their own device. The elder's screen shows the result.
 
-Phase 4 so far: family members approve with a TOTP code from an authenticator app (RFC 6238, one use per code, so a replayed code is rejected), and login and code guessing are rate limited. Audit logging is in: every login, invite, approval, refusal and timeout is written to an append only, hash chained log (see `backend/app/audit.py`), and an elder can read their family's activity at `GET /api/audit`. Still to do: the 30 bypass / 20 compromise adversarial scripts. Passwords are hashed with Argon2id and sessions are signed HttpOnly cookies.
+Phase 4 so far: family members approve with a TOTP code from an authenticator app (RFC 6238, one use per code, so a replayed code is rejected), and login and code guessing are rate limited. Audit logging is in: every login, invite, approval, refusal and timeout is written to an append only, hash chained log (see `backend/app/audit.py`), and an elder can read their family's activity at `GET /api/audit`. The adversarial scripts are in `backend/attacks` (see below). Passwords are hashed with Argon2id and sessions are signed HttpOnly cookies.
 
 After pulling this update, run `pip install -r requirements.txt` in `backend`, `npm install` in `frontend`, and delete `backend/instance/callback.db` once (the database gained columns).
 
@@ -33,6 +33,23 @@ After pulling this update, run `pip install -r requirements.txt` in `backend`, `
 backend/   Flask REST API
 frontend/  React (Vite) and Tailwind CSS
 ```
+
+## Attack scripts
+
+```
+cd backend
+./venv/bin/python -m attacks.run_all
+```
+
+Runs 60 attacks (34 bypass, 26 compromise), each on its own fresh copy of the app and a throwaway database, and writes `backend/attacks/report.md`. Each attack ends as one of:
+
+- DEFENDED: it was stopped, and where it matters the audit log recorded it.
+- GAP: it worked because of a known limit of the design. Each one is explained in the report.
+- BREACH, ERROR or NOT LOGGED: something is wrong. The test suite fails if any attack ends this way.
+
+The suite also runs inside `pytest`, so a change that reopens a hole is caught.
+
+The signing key for login cookies and the audit log is not in the code. Set `CALLBACK_SECRET_KEY`, or the app creates one the first time it runs and keeps it in `backend/instance/secret.key`. Delete `backend/instance/callback.db` once after pulling this (the audit fingerprints changed), and expect to sign in again.
 
 ## Running the backend
 
